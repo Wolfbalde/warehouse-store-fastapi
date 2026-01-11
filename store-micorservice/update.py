@@ -1,0 +1,28 @@
+import time
+from typing_extensions import get_origin
+from main import redis,Order
+
+key='refund-initiated'
+group='store-group'
+
+try:
+    redis.xgroup_create(name=key,groupname=group,mkstream=True)
+    print("Group Created")
+except Exception as e:
+    print(str(e))
+
+
+while True:
+    try:
+        results=redis.xreadgroup(groupname=group,consumername=key,streams={key:'>'})
+        print(results)
+        if results !=[]:
+            for r in results:
+                obj=r[1][0][1]
+                order = Order.get(obj['pk'])
+                order.status = 'refunded'
+                order.save()
+                print(order)
+    except Exception as e:
+        print(str(e))
+    time.sleep(3)
